@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RK Service – Formulář (offline v7: adresa RK, CSV/XLS export, PDF)</title>
+<style>
+  :root{ --primary:#e6007e; --bg:#f7f7f9; --text:#111; --muted:#666; --border:#e5e7eb; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial; background:var(--bg); color:var(--text); }
+  header{ position:sticky; top:0; background:#fff; border-bottom:1px solid var(--border); z-index:10; }
+  .wrap{ max-width:1200px; margin:0 auto; padding:12px 16px; }
+  .brand{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .logo{ width:40px; height:40px; border-radius:12px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fff; }
+  .logo img{ max-width:100%; max-height:100%; object-fit:contain; }
+  .title{ font-weight:700; }
+  .muted{ color:#666; font-size:12px; }
+  .tabs{ display:flex; gap:8px; padding:8px 16px 12px; flex-wrap:wrap; }
+  .tab{ padding:8px 12px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer; }
+  .tab.active{ background:var(--primary); color:#fff; border-color:transparent; }
+  main{ padding:16px; }
+  .grid{ display:grid; gap:14px; }
+  @media(min-width:900px){ .grid-2{ grid-template-columns: 1.6fr 1fr; } .grid-2-2{ grid-template-columns: 1fr 1fr; } .grid-3{ grid-template-columns: repeat(3, 1fr); } .grid-4{ grid-template-columns: repeat(4, 1fr); } }
+  .card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:14px; }
+  .contact-card{ border-left:4px solid var(--primary); }
+  label .lbl{ display:block; font-size:13px; color:#444; margin:6px 0 4px; }
+  .input, textarea, select{ width:100%; border:1px solid var(--border); border-radius:12px; padding:10px 12px; outline:none; }
+  .input:focus, textarea:focus, select:focus{ border-color:var(--primary); box-shadow:0 0 0 2px #e6007e33; }
+  textarea{ min-height:110px; resize:vertical; }
+  .btn{ padding:10px 14px; border:1px solid var(--border); border-radius:14px; background:#fff; cursor:pointer; }
+  .btn.primary{ background:var(--primary); color:#fff; border-color:transparent; }
+  .btn.danger{ color:#b91c1c; }
+  .btn.sm{ padding:6px 10px; font-size:12px; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .tag{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; background:#f3f4f6; border:1px solid var(--border); }
+  .table{ width:100%; border-collapse:collapse; }
+  .table th, .table td{ padding:8px; border-bottom:1px solid var(--border); text-align:left; font-size:14px; vertical-align:top; }
+  .hidden{ display:none !important; }
+  .watermark{ position:fixed; inset:0; pointer-events:none; opacity:.04; font-size:18vw; font-weight:900; display:flex; align-items:center; justify-content:center; color:#000; }
+  .help{ font-size:12px; color:#666; }
+  .actions .btn{ padding:6px 10px; font-size:12px; }
+  .hint{ font-size:12px; color:#6b7280; }
+  .section-title{ margin:0 0 6px; font-weight:600; }
+  .kpi{ display:flex; gap:16px; align-items:center; font-size:12px; color:#444; }
+  .kpi b{ font-size:14px; }
+  @media print{
+    header, .tabs { display:none !important; }
+    body { background:#fff; }
+    .card { border:none; padding:0; }
+    .printable { display:block !important; }
+  }
+</style>
+</head>
+<body>
+<div class="watermark">RK SERVICE</div>
+<header>
+  <div class="wrap brand">
+    <div class="row" style="align-items:center">
+      <div class="logo" id="logoBox">RK</div>
+      <div>
+        <div class="title" id="brandName">RK Service s.r.o.</div>
+        <div class="muted" id="brandLine">777 200 905 · info@rk-service.cz</div>
+      </div>
+    </div>
+    <div class="card contact-card">
+      <div style="font-weight:600">Kontakt RK Service</div>
+      <div id="brandAddr">Osvobození 60, Luka nad Jihlavou</div>
+      <div id="brandIco">IČO 10709681</div>
+      <div class="muted" id="brandWeb">rk-service.cz</div>
+    </div>
+  </div>
+  <div class="tabs wrap">
+    <button class="tab active" data-tab="new">Nový záznam</button>
+    <button class="tab" data-tab="list">Záznamy</button>
+    <button class="tab" data-tab="customers">Zákazníci</button>
+    <button class="tab" data-tab="settings">Nastavení</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- NEW -->
+  <section id="tab-new">
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Základní informace</h3>
+        <div class="grid grid-2-2">
+          <label><div class="lbl">Datum a čas jednání</div><input class="input" type="datetime-local" id="meetingDate"></label>
+          <label><div class="lbl">Typ záznamu</div><select class="input" id="recordType">
+            <option>Jednání</option><option>Lead</option><option>Požadavek</option><option>Oprava</option><option>Reklamace</option><option>Jiné</option>
+          </select></label>
+
+          <label><div class="lbl">IČO</div>
+            <div class="row"><input class="input" id="ico" placeholder="Např. 10709681" style="flex:1">
+              <select class="input" id="icoCountry" style="width:120px">
+                <option value="CZ">CZ</option>
+                <option value="SK">SK</option>
+              </select>
+              <button class="btn sm" id="icoLookup">Načíst z registru</button>
+            </div>
+            <div class="hint">Funguje pro české (ARES) a slovenské (RegisterUZ) subjekty. Pokud prohlížeč blokuje CORS, údaje prosím doplňte ručně.</div>
+          </label>
+          <label><div class="lbl">DIČ / VAT</div><input class="input" id="dic" placeholder="CZ12345678 / SK1234567890"></label>
+
+          <label><div class="lbl">Společnost</div><input class="input" id="company" placeholder="Firma s.r.o."></label>
+          <label><div class="lbl">Kontakt – jméno</div><input class="input" id="contactName" placeholder="Jméno a příjmení"></label>
+          <label><div class="lbl">Telefon</div><input class="input" id="phone" inputmode="tel" placeholder="+420..."></label>
+          <label><div class="lbl">E‑mail</div><input class="input" id="email" inputmode="email" placeholder="email@firma.cz"></label>
+          <label><div class="lbl">Místo (jednání)</div><input class="input" id="location" placeholder="Adresa, město"></label>
+          <label><div class="lbl">Dodací adresa</div><input class="input" id="deliveryAddress" placeholder="Ulice, č.p., PSČ, město"></label>
+          <label><div class="lbl">Fakturační adresa</div><input class="input" id="billingAddress" placeholder="Ulice, č.p., PSČ, město"></label>
+
+          <label class="grid-span"><div class="lbl">Téma / Název příležitosti <button class="btn sm" id="micTopic">🎤 Diktovat</button> <button class="btn sm hidden" id="stopTopic">■ Stop</button></div>
+            <input class="input" id="topic" placeholder="Např. Filtrace hydrauliky linky X"></label>
+        </div>
+        <label><div class="lbl">Poznámky z jednání <button class="btn sm" id="micNotes">🎤 Diktovat</button> <button class="btn sm hidden" id="stopNotes">■ Stop</button></div>
+          <textarea id="notes" placeholder="Shrnutí, klíčové body, citace..."></textarea></label>
+        <label><div class="lbl">Úkoly / Další kroky</div><textarea id="actionItems" placeholder="Co, kdo, do kdy"></textarea></label>
+        <div class="grid grid-3">
+          <label><div class="lbl">Termín dalšího kroku</div><input class="input" type="date" id="nextStepDate"></label>
+          <label><div class="lbl">Stav</div><select class="input" id="status"><option>Nové</option><option>V řešení</option><option>Hotovo</option><option>Pozastaveno</option></select></label>
+          <label><div class="lbl">Priorita</div><select class="input" id="priority"><option>Nízká</option><option selected>Střední</option><option>Vysoká</option></select></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="saveBtn">Uložit záznam</button>
+          <button class="btn" id="newBtn">Nový</button>
+          <button class="btn" id="shareBtn">Sdílet zápis</button>
+          <button class="btn" id="mailBtn">Odeslat e‑mailem</button>
+          <button class="btn" id="printBtn">PDF (tisk záznamu)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Přílohy & doplňky</h3>
+        <div>
+          <div class="lbl">Fotografie (kamera)</div>
+          <input type="file" accept="image/*" id="photoInput" capture="environment" />
+          <div id="photoPreview"></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="lbl">Podpis zákazníka</div>
+          <canvas id="sig" width="900" height="240" style="width:100%;height:160px;border:1px solid var(--border);border-radius:12px;background:#fafafa"></canvas>
+          <div class="row" style="margin-top:6px">
+            <button class="btn" id="sigClear">Vymazat</button>
+            <button class="btn" id="sigSave">Uložit podpis</button>
+          </div>
+          <div id="sigPreview" style="margin-top:6px"></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="lbl">Geolokace</div>
+          <div class="row">
+            <input class="input" id="geo" placeholder="lat,lon" style="flex:1">
+            <button class="btn" id="geoBtn">Získat</button>
+          </div>
+          <div class="help">Pozn.: hlasový diktát funguje jen v prohlížečích, které podporují Web Speech API.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIST -->
+  <section id="tab-list" class="hidden">
+    <div class="card">
+      <div class="row">
+        <input class="input" id="search" placeholder="Hledat firmu, kontakt, téma, poznámky…" style="flex:1">
+        <select class="input" id="fType"><option value="all">Typ: vše</option><option>Jednání</option><option>Lead</option><option>Požadavek</option><option>Oprava</option><option>Reklamace</option><option>Jiné</option></select>
+        <select class="input" id="fStatus"><option value="all">Stav: vše</option><option>Nové</option><option>V řešení</option><option>Hotovo</option><option>Pozastaveno</option></select>
+        <select class="input" id="fPriority"><option value="all">Priorita: vše</option><option>Nízká</option><option>Střední</option><option>Vysoká</option></select>
+        <button class="btn" id="printAll">PDF (tisk seznamu)</button>
+      </div>
+      <div id="listWrap" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="exportRecordsCSV">Exportovat záznamy (CSV)</button>
+        <button class="btn" id="exportRecordsXLS">Exportovat záznamy (XLS)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section id="tab-customers" class="hidden">
+    <div class="card">
+      <h3>Zákazníci</h3>
+
+      <div class="grid grid-4" style="margin:8px 0 12px">
+        <label><div class="lbl">IČO</div><input class="input" id="cIco" placeholder="Např. 12345678"></label>
+        <label><div class="lbl">DIČ / VAT</div><input class="input" id="cDic" placeholder="CZ..., SK..."></label>
+        <label><div class="lbl">Stát</div>
+          <select class="input" id="cCountry"><option value="CZ">CZ</option><option value="SK">SK</option></select>
+        </label>
+        <label><div class="lbl">&nbsp;</div><button class="btn sm" id="cLookup">Načíst z registru</button></label>
+
+        <label class="grid-span"><div class="lbl">Společnost</div><input class="input" id="cCompany" placeholder="Firma s.r.o."></label>
+        <label class="grid-span"><div class="lbl">Adresa (uloží se k zákazníkovi)</div><input class="input" id="cAddress" placeholder="Ulice, č.p., PSČ, město"></label>
+        <label><div class="lbl">Kontakt – jméno</div><input class="input" id="cName" placeholder="Jméno a příjmení"></label>
+        <label><div class="lbl">Telefon</div><input class="input" id="cPhone" inputmode="tel" placeholder="+420..."></label>
+        <label><div class="lbl">E‑mail</div><input class="input" id="cEmail" inputmode="email" placeholder="email@firma.cz"></label>
+        <label class="grid-span"><div class="lbl">Poznámka</div><input class="input" id="cNote" placeholder="např. filtrace hydrauliky linky X"></label>
+      </div>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn primary" id="cAdd">Přidat zákazníka</button>
+        <div class="help">Přidá záznam do seznamu zákazníků bez vyplňování formuláře jednání.</div>
+      </div>
+
+      <table class="table" id="custTable">
+        <thead><tr><th>IČO</th><th>DIČ</th><th>Společnost</th><th>Adresa</th><th>Kontakt</th><th>Telefon</th><th>E‑mail</th><th>Poznámka</th><th class="actions">Akce</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="exportCustomersCSV">Exportovat zákazníky (CSV)</button>
+        <button class="btn" id="exportCustomersXLS">Exportovat zákazníky (XLS)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <h3>Nastavení – branding a kontakty</h3>
+      <div class="grid grid-2-2">
+        <label><div class="lbl">Název firmy</div><input class="input" id="bCompany" value="RK Service s.r.o."></label>
+        <label><div class="lbl">Adresa</div><input class="input" id="bAddress" value="Osvobození 60, Luka nad Jihlavou"></label>
+        <label><div class="lbl">IČO</div><input class="input" id="bIco" value="IČO 10709681"></label>
+        <label><div class="lbl">Telefon</div><input class="input" id="bPhone" value="777 200 905"></label>
+        <label><div class="lbl">E‑mail</div><input class="input" id="bEmail" value="info@rk-service.cz"></label>
+        <label><div class="lbl">Web</div><input class="input" id="bWeb" value="https://rk-service.cz"></label>
+        <label><div class="lbl">Primární barva</div><input class="input" id="bColor" type="color" value="#e6007e"></label>
+        <div>
+          <div class="lbl">Logo (PNG/SVG)</div>
+          <input type="file" id="bLogo" accept="image/*">
+          <div id="logoPreview" style="margin-top:6px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h3>Nastavení – import/export & chování adresy</h3>
+      <div class="grid grid-2-2">
+        <label><div class="lbl">Při načtení z registru vyplnit adresu jako</div>
+          <select class="input" id="bPrefAddressTarget">
+            <option value="delivery">Dodací adresa</option>
+            <option value="billing">Fakturační adresa</option>
+            <option value="both">Obě (dodací i fakturační)</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="section-title">Export</div>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn" id="exportRecords">Exportovat záznamy (CSV)</button>
+        <button class="btn" id="exportCustomers">Exportovat zákazníky (CSV)</button>
+      </div>
+
+      <div class="section-title">Import (CSV)</div>
+      <div class="help">Očekávané hlavičky: pro záznamy <code>id,createdAt,meetingDate,ico,dic,company,contactName,phone,email,location,billingAddress,deliveryAddress,recordType,topic,notes,actionItems,nextStepDate,status,priority,geo</code>. Pro zákazníky <code>id,ico,dic,company,address,contactName,phone,email,note</code>.</div>
+      <div class="row">
+        <input type="file" id="importRecordsFile" accept=".csv">
+        <button class="btn" id="importRecords">Importovat záznamy</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="file" id="importCustomersFile" accept=".csv">
+        <button class="btn" id="importCustomers">Importovat zákazníky</button>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="saveBrand">Uložit nastavení</button>
+        <button class="btn" id="resetBrand">Obnovit výchozí</button>
+        <button class="btn danger" id="wipeAll">Smazat všechna data</button>
+      </div>
+      <div class="help">Nastavení a data se ukládají pouze do tohoto zařízení (localStorage).</div>
+    </div>
+  </section>
+</main>
+
+<script>
+// --- Helpers ---
+const save = (k,v)=>localStorage.setItem(k, JSON.stringify(v));
+const load = (k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null') ?? def; }catch{ return def; } };
+const uid = ()=> Date.now() + "_" + Math.random().toString(36).slice(2,8);
+const fmt = (iso)=> iso? new Date(iso).toLocaleString(): "";
+
+function csvEscape(v){ if(v==null) v=''; v=String(v); if(/[",\n]/.test(v)){ return '"' + v.replace(/"/g,'""') + '"'; } return v; }
+function toCSV(rows){ return rows.map(r=> r.map(csvEscape).join(',')).join('\n'); }
+function parseCSV(text){
+  const rows=[]; let i=0, field='', row=[], inQ=false;
+  while(i<text.length){
+    const ch=text[i];
+    if(inQ){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ field+='"'; i+=2; continue; }
+        inQ=false; i++; continue;
+      } else { field+=ch; i++; continue; }
+    } else {
+      if(ch === '"'){ inQ=true; i++; continue; }
+      if(ch === ','){ row.push(field); field=''; i++; continue; }
+      if(ch === '\n' || ch === '\r'){ if(ch=='\r' && text[i+1]=='\n') i++; row.push(field); rows.push(row); field=''; row=[]; i++; continue; }
+      field+=ch; i++; continue;
+    }
+  }
+  row.push(field); rows.push(row);
+  return rows.filter(r=> r.length>1 || (r.length===1 && r[0].trim()!==''));
+}
+
+// --- State ---
+let brand = load('rks_brand', { company:'RK Service s.r.o.', address:'Osvobození 60, Luka nad Jihlavou', ico:'IČO 10709681', phone:'777 200 905', email:'info@rk-service.cz', web:'https://rk-service.cz', color:'#e6007e', logo:'', prefAddressTarget:'delivery' });
+let records = load('rks_records', []);
+let customers = load('rks_customers', []);
+
+// --- Brand apply ---
+function applyBrand(){
+  document.documentElement.style.setProperty('--primary', brand.color||'#e6007e');
+  document.getElementById('brandName').textContent = brand.company || 'RK Service s.r.o.';
+  document.getElementById('brandLine').textContent = (brand.phone||'') + ' · ' + (brand.email||'');
+  document.getElementById('brandAddr').textContent = brand.address || 'Osvobození 60, Luka nad Jihlavou';
+  document.getElementById('brandIco').textContent = brand.ico || '';
+  document.getElementById('brandWeb').textContent = (brand.web||'').replace(/^https?:\/\//,'');
+  const box = document.getElementById('logoBox'); box.innerHTML='';
+  if(brand.logo){ const img=new Image(); img.src=brand.logo; box.appendChild(img); } else { box.textContent='RK'; }
+}
+applyBrand();
+
+// --- Tabs ---
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.tab;
+    document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+    document.getElementById('tab-'+t).classList.remove('hidden');
+    if(t==='list') renderList();
+    if(t==='customers') renderCustomers();
+    if(t==='settings') loadSettings();
+  });
+});
+
+// --- Defaults ---
+const nowLocal = ()=>{ const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); };
+document.getElementById('meetingDate').value = nowLocal();
+document.getElementById('status').value = 'Nové';
+document.getElementById('priority').value='Střední';
+
+// --- Photo ---
+document.getElementById('photoInput').addEventListener('change', (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const c = document.createElement('canvas');
+      const maxW = 1200, scale = Math.min(1, maxW/img.width);
+      c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+      const ctx = c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
+      const data = c.toDataURL('image/jpeg', 0.8);
+      document.getElementById('photoPreview').innerHTML = '<img src="'+data+'" style="max-height:220px;width:100%;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;margin-top:6px">';
+      document.getElementById('photoPreview').dataset.data = data;
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+// --- Signature ---
+const sig = document.getElementById('sig'); const ctx = sig.getContext('2d'); ctx.lineWidth=2; ctx.lineCap='round';
+let drawing=false;
+function pos(e){ const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x,y}; }
+sig.addEventListener('mousedown', (e)=>{ const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); drawing=true; });
+sig.addEventListener('mousemove', (e)=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+['mouseup','mouseleave'].forEach(ev=>sig.addEventListener(ev, ()=>drawing=false));
+sig.addEventListener('touchstart', (e)=>{ const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); drawing=true; });
+sig.addEventListener('touchmove', (e)=>{ const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); });
+sig.addEventListener('touchend', ()=>drawing=false);
+document.getElementById('sigClear').onclick = ()=>{ ctx.clearRect(0,0,sig.width,sig.height); document.getElementById('sigPreview').innerHTML=''; document.getElementById('sigPreview').dataset.data=''; };
+document.getElementById('sigSave').onclick = ()=>{
+  const data = sig.toDataURL('image/png');
+  document.getElementById('sigPreview').innerHTML = '<img src="'+data+'" style="max-height:120px;border:1px solid #e5e7eb;border-radius:12px;background:#fff">';
+  document.getElementById('sigPreview').dataset.data = data;
+};
+
+// --- Geo ---
+document.getElementById('geoBtn').onclick = ()=>{
+  if(!navigator.geolocation) return alert('Geolokace není podporována');
+  navigator.geolocation.getCurrentPosition(
+    (p)=>{ const v=p.coords.latitude.toFixed(6)+','+p.coords.longitude.toFixed(6); document.getElementById('geo').value=v; },
+    (e)=>alert('Nelze získat polohu: '+e.message),
+    { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+  );
+};
+
+// --- Dictation ---
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function startDict(targetId, startBtn, stopBtn){
+  if(!SR){ alert('Hlasový diktát není v tomto prohlížeči dostupný.'); return; }
+  const rec = new SR(); rec.lang='cs-CZ'; rec.interimResults=true; rec.continuous=true;
+  rec.onresult = (e)=>{
+    for(let i=e.resultIndex;i<e.results.length;i++){ const res=e.results[i]; if(res.isFinal){ const t=res[0].transcript.trim(); if(!t) continue;
+      const el = document.getElementById(targetId);
+      if(targetId==='topic') el.value = (el.value? el.value+' ' : '') + t;
+      else el.value = (el.value? el.value+'\\n' : '') + t;
+    }}
+  };
+  rec.onend = ()=>{ stopBtn.classList.add('hidden'); startBtn.classList.remove('hidden'); };
+  rec.onerror = ()=>{};
+  rec.start();
+  stopBtn.onclick = ()=> rec.stop();
+  startBtn.classList.add('hidden'); stopBtn.classList.remove('hidden');
+}
+document.getElementById('micTopic').onclick = ()=> startDict('topic', document.getElementById('micTopic'), document.getElementById('stopTopic'));
+document.getElementById('micNotes').onclick = ()=> startDict('notes', document.getElementById('micNotes'), document.getElementById('stopNotes'));
+
+// --- Save / New ---
+function getFormData(){
+  return {
+    id: document.getElementById('recordId')?.value || '',
+    createdAt: new Date().toISOString(),
+    meetingDate: document.getElementById('meetingDate').value,
+    ico: document.getElementById('ico').value.trim(),
+    dic: document.getElementById('dic').value.trim(),
+    company: document.getElementById('company').value.trim(),
+    contactName: document.getElementById('contactName').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    location: document.getElementById('location').value.trim(),
+    billingAddress: document.getElementById('billingAddress').value.trim(),
+    deliveryAddress: document.getElementById('deliveryAddress').value.trim(),
+    recordType: document.getElementById('recordType').value,
+    topic: document.getElementById('topic').value,
+    notes: document.getElementById('notes').value,
+    actionItems: document.getElementById('actionItems').value,
+    nextStepDate: document.getElementById('nextStepDate').value,
+    status: document.getElementById('status').value,
+    priority: document.getElementById('priority').value,
+    assigned: '', geo: document.getElementById('geo').value,
+    photo: document.getElementById('photoPreview').dataset.data || '',
+    signature: document.getElementById('sigPreview').dataset.data || '',
+    gdprConsent: true
+  };
+}
+function setFormData(r){
+  const nowL = nowLocal();
+  document.getElementById('meetingDate').value = r.meetingDate || nowL;
+  document.getElementById('ico').value = r.ico || '';
+  document.getElementById('dic').value = r.dic || '';
+  document.getElementById('company').value = r.company || '';
+  document.getElementById('contactName').value = r.contactName || '';
+  document.getElementById('phone').value = r.phone || '';
+  document.getElementById('email').value = r.email || '';
+  document.getElementById('location').value = r.location || '';
+  document.getElementById('billingAddress').value = r.billingAddress || '';
+  document.getElementById('deliveryAddress').value = r.deliveryAddress || '';
+  document.getElementById('recordType').value = r.recordType || 'Jednání';
+  document.getElementById('topic').value = r.topic || '';
+  document.getElementById('notes').value = r.notes || '';
+  document.getElementById('actionItems').value = r.actionItems || '';
+  document.getElementById('nextStepDate').value = r.nextStepDate || '';
+  document.getElementById('status').value = r.status || 'Nové';
+  document.getElementById('priority').value = r.priority || 'Střední';
+  document.getElementById('geo').value = r.geo || '';
+  document.getElementById('photoPreview').innerHTML = r.photo? '<img src="'+r.photo+'" style="max-height:220px;width:100%;object-fit:contain;border:1px solid #e5e7eb;border-radius:12px;margin-top:6px">' : '';
+  document.getElementById('photoPreview').dataset.data = r.photo || '';
+  document.getElementById('sigPreview').innerHTML = r.signature? '<img src="'+r.signature+'" style="max-height:120px;border:1px solid #e5e7eb;border-radius:12px;background:#fff">': '';
+  document.getElementById('sigPreview').dataset.data = r.signature || '';
+}
+document.getElementById('newBtn').onclick = ()=>{ setFormData({}); };
+document.getElementById('saveBtn').onclick = ()=>{
+  const r = getFormData(); r.id = r.id || uid();
+  const idx = records.findIndex(x=>x.id===r.id);
+  if(idx>=0) records[idx]=r; else records.unshift(r);
+  save('rks_records', records);
+  if(r.company){
+    const exists = customers.some(c=> (c.company||'').trim().toLowerCase() === r.company.trim().toLowerCase());
+    if(!exists){
+      customers.unshift({ id:uid(), ico:r.ico||'', dic:r.dic||'', company:r.company, address:r.deliveryAddress||r.billingAddress||'', contactName:r.contactName, phone:r.phone, email:r.email, note:r.topic });
+      save('rks_customers', customers);
+    }
+  }
+  alert('Uloženo.');
+  setFormData({});
+};
+
+// --- List rendering ---
+function renderList(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const tf = document.getElementById('fType').value;
+  const sf = document.getElementById('fStatus').value;
+  const pf = document.getElementById('fPriority').value;
+  const ok = (r)=>{
+    const mq = !q || [r.company,r.contactName,r.phone,r.email,r.topic,r.notes,r.location,r.deliveryAddress,r.billingAddress,r.recordType,r.status,r.priority,r.ico,r.dic].some(v=> (v||'').toLowerCase().includes(q));
+    const mt = tf==='all' || r.recordType===tf;
+    const ms = sf==='all' || r.status===sf;
+    const mp = pf==='all' || r.priority===pf;
+    return mq && mt && ms && mp;
+  };
+  const wrap = document.getElementById('listWrap'); wrap.innerHTML='';
+  records.filter(ok).forEach(r=>{
+    const el = document.createElement('div'); el.className='card'; el.style.marginBottom='10px';
+    el.innerHTML = `
+      <div class="row" style="justify-content:space-between">
+        <div><strong>${r.company||'(bez společnosti)'}</strong> — <span class="muted">${r.recordType}</span></div>
+        <div class="muted">${fmt(r.meetingDate||r.createdAt)}</div>
+      </div>
+      <div class="muted" style="margin:4px 0">${r.topic||''}</div>
+      <div class="row" style="flex-wrap:wrap;gap:10px;margin:6px 0">
+        <div><b>IČO:</b> ${r.ico||'—'}</div>
+        <div><b>DIČ:</b> ${r.dic||'—'}</div>
+        <div><b>Kontakt:</b> ${r.contactName||'—'}</div>
+        <div><b>Tel:</b> ${r.phone||'—'}</div>
+        <div><b>E‑mail:</b> ${r.email||'—'}</div>
+        <div><b>Místo:</b> ${r.location||'—'}</div>
+        <div><b>Dodací adresa:</b> ${r.deliveryAddress||'—'}</div>
+        <div><b>Fakturační adresa:</b> ${r.billingAddress||'—'}</div>
+      </div>
+      <details>
+        <summary>Poznámky / úkoly</summary>
+        <div class="grid grid-2-2" style="margin-top:6px">
+          <div><div class="muted">Poznámky</div><div style="white-space:pre-wrap">${r.notes||'—'}</div></div>
+          <div><div class="muted">Úkoly / Další kroky</div><div style="white-space:pre-wrap">${r.actionItems||'—'}</div></div>
+        </div>
+      </details>
+      <div class="row" style="margin-top:8px">
+        <span class="tag">${r.status}</span>
+        <span class="tag">Priorita: ${r.priority}</span>
+        ${r.nextStepDate? `<span class="tag">Další krok: ${new Date(r.nextStepDate).toLocaleDateString()}</span>`:''}
+        ${r.geo? `<span class="tag">GPS: ${r.geo}</span>`:''}
+      </div>
+      <div class="row" style="margin-top:8px">
+        ${r.photo? `<img src="${r.photo}" style="height:70px;border:1px solid #e5e7eb;border-radius:10px">`:''}
+        ${r.signature? `<img src="${r.signature}" style="height:70px;border:1px solid #e5e7eb;border-radius:10px;background:#fff">`:''}
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" data-act="edit">Upravit</button>
+        <button class="btn danger" data-act="del">Smazat</button>
+        <button class="btn" data-act="email">Poslat e‑mail</button>
+        <button class="btn" data-act="share">Sdílet</button>
+      </div>
+    `;
+    el.querySelector('[data-act="edit"]').onclick = ()=>{ setFormData(r); document.querySelector('[data-tab="new"]').click(); };
+    el.querySelector('[data-act="del"]').onclick = ()=>{ if(!confirm('Opravdu smazat?')) return; records = records.filter(x=>x.id!==r.id); save('rks_records', records); renderList(); };
+    el.querySelector('[data-act="email"]').onclick = ()=> sendEmail(r);
+    el.querySelector('[data-act="share"]').onclick = ()=> shareRecord(r);
+    wrap.appendChild(el);
+  });
+  if(!wrap.innerHTML) wrap.innerHTML = '<div class="muted" style="padding:20px;text-align:center">Žádné záznamy neodpovídají filtru.</div>';
+}
+['search','fType','fStatus','fPriority'].forEach(id=> document.getElementById(id).addEventListener('input', renderList));
+
+// --- Customers ---
+function renderCustomers(){
+  const tb = document.querySelector('#custTable tbody'); tb.innerHTML='';
+  customers.forEach(c=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${c.ico||''}</td><td>${c.dic||''}</td><td>${c.company}</td><td>${c.address||'—'}</td><td>${c.contactName||'—'}</td><td>${c.phone||'—'}</td><td>${c.email||'—'}</td><td>${c.note||'—'}</td>
+    <td class="actions">
+      <button class="btn sm" data-act="edit">Upravit</button>
+      <button class="btn sm danger" data-act="del">Smazat</button>
+    </td>`;
+    tr.querySelector('[data-act="edit"]').onclick = ()=>{
+      document.getElementById('cIco').value = c.ico||'';
+      document.getElementById('cDic').value = c.dic||'';
+      document.getElementById('cCountry').value = (c.dic||'').startsWith('SK')? 'SK' : 'CZ';
+      document.getElementById('cCompany').value = c.company||'';
+      document.getElementById('cAddress').value = c.address||'';
+      document.getElementById('cName').value = c.contactName||'';
+      document.getElementById('cPhone').value = c.phone||'';
+      document.getElementById('cEmail').value = c.email||'';
+      document.getElementById('cNote').value = c.note||'';
+      customers = customers.filter(x=>x.id!==c.id);
+      save('rks_customers', customers);
+      renderCustomers();
+    };
+    tr.querySelector('[data-act="del"]').onclick = ()=>{
+      if(!confirm('Opravdu smazat zákazníka?')) return;
+      customers = customers.filter(x=>x.id!==c.id);
+      save('rks_customers', customers);
+      renderCustomers();
+    };
+    tb.appendChild(tr);
+  });
+  if(!customers.length){
+    const tr=document.createElement('tr'); tr.innerHTML='<td colspan="9" class="muted">Zatím žádní zákazníci.</td>'; tb.appendChild(tr);
+  }
+}
+
+// Add customer quick form
+document.getElementById('cAdd').onclick = ()=>{
+  const company = document.getElementById('cCompany').value.trim();
+  const address = document.getElementById('cAddress').value.trim();
+  const contactName = document.getElementById('cName').value.trim();
+  const phone = document.getElementById('cPhone').value.trim();
+  const email = document.getElementById('cEmail').value.trim();
+  const note = document.getElementById('cNote').value.trim();
+  const ico = document.getElementById('cIco').value.trim();
+  const dic = document.getElementById('cDic').value.trim();
+  if(!company){ alert('Vyplňte prosím název společnosti.'); return; }
+  const exists = customers.some(c=> (c.company||'').toLowerCase() === company.toLowerCase());
+  if(exists){ alert('Zákazník se stejným názvem už existuje.'); return; }
+  customers.unshift({ id: uid(), ico, dic, company, address, contactName, phone, email, note });
+  save('rks_customers', customers);
+  ['cIco','cDic','cCompany','cAddress','cName','cPhone','cEmail','cNote'].forEach(id=> document.getElementById(id).value = '');
+  renderCustomers();
+};
+
+// --- Settings load/save ---
+function loadSettings(){
+  document.getElementById('bCompany').value = brand.company||'';
+  document.getElementById('bAddress').value = brand.address||'';
+  document.getElementById('bIco').value = brand.ico||'';
+  document.getElementById('bPhone').value = brand.phone||'';
+  document.getElementById('bEmail').value = brand.email||'';
+  document.getElementById('bWeb').value = brand.web||'';
+  document.getElementById('bColor').value = brand.color||'#e6007e';
+  document.getElementById('bPrefAddressTarget').value = brand.prefAddressTarget || 'delivery';
+  const prev = document.getElementById('logoPreview'); prev.innerHTML = brand.logo? '<img src="'+brand.logo+'" style="max-height:70px">' : '';
+}
+document.getElementById('bLogo').addEventListener('change', (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const rd = new FileReader(); rd.onload = ()=>{ brand.logo = rd.result; document.getElementById('logoPreview').innerHTML = '<img src="'+brand.logo+'" style="max-height:70px">'; applyBrand(); save('rks_brand', brand); };
+  rd.readAsDataURL(f);
+});
+document.getElementById('saveBrand').onclick = ()=>{
+  brand = {
+    company: document.getElementById('bCompany').value,
+    address: document.getElementById('bAddress').value,
+    ico: document.getElementById('bIco').value,
+    phone: document.getElementById('bPhone').value,
+    email: document.getElementById('bEmail').value,
+    web: document.getElementById('bWeb').value,
+    color: document.getElementById('bColor').value,
+    logo: brand.logo||'',
+    prefAddressTarget: document.getElementById('bPrefAddressTarget').value || 'delivery'
+  };
+  save('rks_brand', brand); applyBrand(); alert('Uloženo.');
+};
+document.getElementById('resetBrand').onclick = ()=>{
+  localStorage.removeItem('rks_brand');
+  brand = { company:'RK Service s.r.o.', address:'Osvobození 60, Luka nad Jihlavou', ico:'IČO 10709681', phone:'777 200 905', email:'info@rk-service.cz', web:'https://rk-service.cz', color:'#e6007e', logo:'', prefAddressTarget:'delivery' };
+  applyBrand(); loadSettings(); alert('Obnoveno.');
+};
+document.getElementById('wipeAll').onclick = ()=>{
+  if(!confirm('Smazat VŠECHNA data (záznamy + zákazníci + nastavení)?')) return;
+  localStorage.removeItem('rks_records'); localStorage.removeItem('rks_customers'); localStorage.removeItem('rks_brand');
+  records=[]; customers=[]; alert('Smazáno.');
+};
+
+// --- Email + Share ---
+function buildEmailBody(r){
+  const arr = [
+    `Dobrý den ${r.contactName||''},`,'',
+    'zasíláme Vám zápis z jednání:','',
+    `IČO: ${r.ico||'-'}`,
+    `DIČ: ${r.dic||'-'}`,
+    `Společnost: ${r.company||'-'}`,
+    `Kontakt: ${r.contactName||'-'} | Tel: ${r.phone||'-'} | E‑mail: ${r.email||'-'}`,
+    `Datum jednání: ${fmt(r.meetingDate)}`,
+    `Místo: ${r.location||'-'}`,
+    `Dodací adresa: ${r.deliveryAddress||'-'}`,
+    `Fakturační adresa: ${r.billingAddress||'-'}`,
+    `Typ záznamu: ${r.recordType}`,
+    `Téma: ${r.topic||'-'}`,'',
+    'Poznámky:', (r.notes||'-'), '',
+    'Úkoly / Další kroky:', (r.actionItems||'-'), '',
+    (r.nextStepDate? 'Další krok do: '+new Date(r.nextStepDate).toLocaleDateString() : ''),
+    (r.geo? 'GPS: '+r.geo : ''),'',
+    '—',
+    brand.company, brand.address, brand.ico,
+    `Tel: ${brand.phone} | E‑mail: ${brand.email}`, (brand.web||'').replace(/^https?:\/\//,'')
+  ].filter(Boolean);
+  return arr.join('\n');
+}
+function sendEmail(r){
+  const subject = encodeURIComponent(`Zápis z jednání – ${r.company||'bez názvu'} (${new Date(r.meetingDate).toLocaleDateString()})`);
+  const body = encodeURIComponent(buildEmailBody(r));
+  const to = encodeURIComponent(r.email||'');
+  const cc = encodeURIComponent(brand.email||'');
+  location.href = `mailto:${to}?cc=${cc}&subject=${subject}&body=${body}`;
+}
+async function shareRecord(r){
+  const text = buildEmailBody(r);
+  if(navigator.share){ try{ await navigator.share({ title:'Zápis z jednání', text }); }catch(e){} }
+  else{ try{ await navigator.clipboard.writeText(text); alert('Zápis zkopírován do schránky.'); }catch(e){ alert('Zkopírování se nepodařilo.'); } }
+}
+document.getElementById('mailBtn').onclick = ()=> sendEmail(getFormData());
+document.getElementById('shareBtn').onclick = ()=> shareRecord(getFormData());
+
+// --- IČO lookup (CZ/SK) ---
+function normIco(v){ return (v||'').replace(/\D+/g,'').padStart(8,'0'); }
+async function lookupCZ(ico){
+  const url = `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${ico}`;
+  const r = await fetch(url, { headers: { 'Accept':'application/json' } });
+  if(!r.ok) throw new Error('ARES ' + r.status);
+  const j = await r.json();
+  const name = j.obchodniJmeno || '';
+  const address = (j.sidlo && (j.sidlo.textovaAdresa || [j.sidlo.nazevUlice, j.sidlo.cisloDomovni, j.sidlo.cisloOrientacni, j.sidlo.psc, j.sidlo.nazevObce].filter(Boolean).join(' '))) || '';
+  const dic = j.dphId || (j.dic || '');
+  return { name, address, dic };
+}
+async function lookupSK(ico){
+  const url = `https://www.registeruz.sk/cruz-public/api/uctovna-jednotka?ico=${ico}`;
+  const r = await fetch(url, { headers: { 'Accept':'application/json' } });
+  if(!r.ok) throw new Error('RegisterUZ ' + r.status);
+  const j = await r.json();
+  if(!Array.isArray(j) || !j.length) throw new Error('Nenalezeno');
+  const item = j[0];
+  const name = item.nazovUJ || '';
+  const address = [item.ulica, item.cisloDom, item.psc, item.obec].filter(Boolean).join(' ');
+  const dic = item.dic || '';
+  return { name, address, dic };
+}
+async function doIcoLookup(czsk, ico, fillTargets){
+  try{
+    const nico = normIco(ico);
+    if(!nico){ alert('Zadejte IČO.'); return; }
+    const res = czsk==='CZ' ? await lookupCZ(nico) : await lookupSK(nico);
+    if(res.name && fillTargets.company) document.getElementById(fillTargets.company).value = res.name;
+    if(res.address){
+      const pref = brand.prefAddressTarget || 'delivery';
+      if(fillTargets.deliveryAddress && (pref==='delivery' || pref==='both')) document.getElementById(fillTargets.deliveryAddress).value = res.address;
+      if(fillTargets.billingAddress && (pref==='billing' || pref==='both')) document.getElementById(fillTargets.billingAddress).value = res.address;
+      if(fillTargets.customerAddress) document.getElementById(fillTargets.customerAddress).value = res.address;
+    }
+    if(res.dic && fillTargets.dic) document.getElementById(fillTargets.dic).value = res.dic;
+    if(fillTargets.icoField) document.getElementById(fillTargets.icoField).value = nico;
+    alert('Údaje načteny z registru.');
+  }catch(e){
+    console.error(e);
+    alert('Nepodařilo se načíst údaje z registru ('+ e.message +'). Můžete vyplnit ručně.');
+  }
+}
+document.getElementById('icoLookup').onclick = ()=>{
+  const czsk = document.getElementById('icoCountry').value;
+  const ico = document.getElementById('ico').value;
+  doIcoLookup(czsk, ico, { company:'company', deliveryAddress:'deliveryAddress', billingAddress:'billingAddress', dic:'dic', icoField:'ico' });
+};
+document.getElementById('cLookup').onclick = ()=>{
+  const czsk = document.getElementById('cCountry').value;
+  const ico = document.getElementById('cIco').value;
+  doIcoLookup(czsk, ico, { company:'cCompany', customerAddress:'cAddress', dic:'cDic', icoField:'cIco' });
+};
+
+// --- Exports: CSV ---
+function exportRecordsCSV(){
+  const header = ['id','createdAt','meetingDate','ico','dic','company','contactName','phone','email','location','billingAddress','deliveryAddress','recordType','topic','notes','actionItems','nextStepDate','status','priority','geo'];
+  const rows = [header];
+  records.forEach(r=> rows.push(header.map(h=> r[h] ?? '')));
+  const blob = new Blob([toCSV(rows)], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rks_zaznamy.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+function exportCustomersCSV(){
+  const header = ['id','ico','dic','company','address','contactName','phone','email','note'];
+  const rows = [header];
+  customers.forEach(c=> rows.push(header.map(h=> c[h] ?? '')));
+  const blob = new Blob([toCSV(rows)], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rks_zakaznici.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById('exportRecords').onclick = exportRecordsCSV;
+document.getElementById('exportCustomers').onclick = exportCustomersCSV;
+document.getElementById('exportRecordsCSV').onclick = exportRecordsCSV;
+document.getElementById('exportCustomersCSV').onclick = exportCustomersCSV;
+
+// --- Exports: Excel-compatible XLS (XML 2003) ---
+function toXLSXml(sheetName, headers, dataRows){
+  function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  const cols = headers.map(()=>'<Column ss:AutoFitWidth="1"/>').join('');
+  const headRow = headers.map(h=>`<Cell><Data ss:Type="String">${esc(h)}</Data></Cell>`).join('');
+  const body = dataRows.map(r=>'<Row>'+ r.map(v=>`<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`).join('') +'</Row>').join('');
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="${esc(sheetName)}">
+  <Table>${cols}
+   <Row>${headRow}</Row>
+   ${body}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+}
+function downloadXLS(name, xml){
+  const blob = new Blob([xml], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById('exportRecordsXLS').onclick = ()=>{
+  const headers = ['id','createdAt','meetingDate','ico','dic','company','contactName','phone','email','location','billingAddress','deliveryAddress','recordType','topic','notes','actionItems','nextStepDate','status','priority','geo'];
+  const rows = records.map(r=> headers.map(h=> r[h] ?? ''));
+  downloadXLS('rks_zaznamy.xls', toXLSXml('Zaznamy', headers, rows));
+};
+document.getElementById('exportCustomersXLS').onclick = ()=>{
+  const headers = ['id','ico','dic','company','address','contactName','phone','email','note'];
+  const rows = customers.map(c=> headers.map(h=> c[h] ?? ''));
+  downloadXLS('rks_zakaznici.xls', toXLSXml('Zakaznici', headers, rows));
+};
+
+// --- Import CSV ---
+document.getElementById('importRecords').onclick = ()=>{
+  const f = document.getElementById('importRecordsFile').files?.[0]; if(!f) return alert('Vyberte CSV soubor.');
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const rows = parseCSV(rd.result);
+      const headers = rows.shift().map(h=>h.trim());
+      const idx = (k)=> headers.indexOf(k);
+      let imported=0;
+      rows.forEach(c=>{
+        const r = {
+          id: c[idx('id')] || uid(),
+          createdAt: c[idx('createdAt')] || new Date().toISOString(),
+          meetingDate: c[idx('meetingDate')] || '',
+          ico: c[idx('ico')] || '',
+          dic: c[idx('dic')] || '',
+          company: c[idx('company')] || '',
+          contactName: c[idx('contactName')] || '',
+          phone: c[idx('phone')] || '',
+          email: c[idx('email')] || '',
+          location: c[idx('location')] || '',
+          billingAddress: c[idx('billingAddress')] || '',
+          deliveryAddress: c[idx('deliveryAddress')] || '',
+          recordType: c[idx('recordType')] || 'Jednání',
+          topic: c[idx('topic')] || '',
+          notes: c[idx('notes')] || '',
+          actionItems: c[idx('actionItems')] || '',
+          nextStepDate: c[idx('nextStepDate')] || '',
+          status: c[idx('status')] || 'Nové',
+          priority: c[idx('priority')] || 'Střední',
+          geo: c[idx('geo')] || '',
+          photo: '', signature: '', gdprConsent: true
+        };
+        const ex = records.findIndex(x=>x.id===r.id);
+        if(ex>=0) records[ex]=r; else records.push(r);
+        imported++;
+      });
+      save('rks_records', records);
+      alert('Importováno záznamů: '+imported);
+      renderList();
+    }catch(e){ alert('Chyba při importu: '+e.message); }
+  };
+  rd.readAsText(f, 'utf-8');
+};
+document.getElementById('importCustomers').onclick = ()=>{
+  const f = document.getElementById('importCustomersFile').files?.[0]; if(!f) return alert('Vyberte CSV soubor.');
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const rows = parseCSV(rd.result);
+      const headers = rows.shift().map(h=>h.trim());
+      const idx = (k)=> headers.indexOf(k);
+      let imported=0;
+      rows.forEach(c=>{
+        const r = {
+          id: c[idx('id')] || uid(),
+          ico: c[idx('ico')] || '',
+          dic: c[idx('dic')] || '',
+          company: c[idx('company')] || '',
+          address: c[idx('address')] || '',
+          contactName: c[idx('contactName')] || '',
+          phone: c[idx('phone')] || '',
+          email: c[idx('email')] || '',
+          note: c[idx('note')] || ''
+        };
+        const ex = customers.findIndex(x=>x.id===r.id || x.company.toLowerCase()===r.company.toLowerCase());
+        if(ex>=0) customers[ex]=r; else customers.push(r);
+        imported++;
+      });
+      save('rks_customers', customers);
+      alert('Importováno zákazníků: '+imported);
+      renderCustomers();
+    }catch(e){ alert('Chyba při importu: '+e.message); }
+  };
+  rd.readAsText(f, 'utf-8');
+};
+
+// --- PDF (print) ---
+function printCurrent(){
+  const r = getFormData();
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>Zápis z jednání – ${r.company||''}</title>
+    <style>
+      body{ font-family:system-ui,Segoe UI,Roboto,Arial; padding:20px; }
+      h1{ margin:0 0 8px; }
+      .muted{ color:#666; }
+      .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 18px; }
+      .box{ border:1px solid #ddd; border-radius:12px; padding:12px; margin:10px 0; }
+      .lbl{ font-size:12px; color:#555; }
+      .val{ font-weight:600; }
+      .footer{ margin-top:16px; font-size:12px; color:#666; }
+      img.thumb{ max-height:100px; border:1px solid #ddd; border-radius:8px; margin-right:8px; }
+      .sig{ max-height:80px; border:1px solid #ddd; border-radius:8px; background:#fff }
+    </style></head><body>
+    <h1>Zápis z jednání</h1>
+    <div class="muted">${new Date().toLocaleString()}</div>
+    <div class="grid">
+      <div><div class="lbl">Společnost</div><div class="val">${r.company||'-'}</div></div>
+      <div><div class="lbl">Kontakt</div><div class="val">${r.contactName||'-'}</div></div>
+      <div><div class="lbl">IČO / DIČ</div><div class="val">${r.ico||'-'} / ${r.dic||'-'}</div></div>
+      <div><div class="lbl">Telefon / E‑mail</div><div class="val">${r.phone||'-'} / ${r.email||'-'}</div></div>
+      <div><div class="lbl">Místo</div><div class="val">${r.location||'-'}</div></div>
+      <div><div class="lbl">Datum</div><div class="val">${fmt(r.meetingDate)}</div></div>
+      <div><div class="lbl">Dodací adresa</div><div class="val">${r.deliveryAddress||'-'}</div></div>
+      <div><div class="lbl">Fakturační adresa</div><div class="val">${r.billingAddress||'-'}</div></div>
+      <div><div class="lbl">Typ / Priorita / Stav</div><div class="val">${r.recordType} / ${r.priority} / ${r.status}</div></div>
+      <div><div class="lbl">Další krok do</div><div class="val">${r.nextStepDate? new Date(r.nextStepDate).toLocaleDateString() : '-'}</div></div>
+      <div><div class="lbl">GPS</div><div class="val">${r.geo||'-'}</div></div>
+    </div>
+    <div class="box"><div class="lbl">Téma</div><div>${(r.topic||'').replace(/</g,'&lt;')}</div></div>
+    <div class="box"><div class="lbl">Poznámky</div><div style="white-space:pre-wrap">${(r.notes||'').replace(/</g,'&lt;')}</div></div>
+    <div class="box"><div class="lbl">Úkoly / Další kroky</div><div style="white-space:pre-wrap">${(r.actionItems||'').replace(/</g,'&lt;')}</div></div>
+    <div class="box">
+      <div class="lbl">Přílohy</div>
+      ${(r.photo? `<img class="thumb" src="${r.photo}">`:'')}
+      ${(r.signature? `<img class="sig" src="${r.signature}">`:'')}
+    </div>
+    <div class="footer">
+      ${brand.company} — ${brand.address} — ${brand.ico}<br>
+      Tel: ${brand.phone} · E‑mail: ${brand.email} · ${(brand.web||'').replace(/^https?:\/\//,'')}
+    </div>
+    </body></html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+function printAll(){
+  const headers = ['Datum','Společnost','Kontakt','IČO','DIČ','Typ','Stav','Priorita','Téma'];
+  const rows = records.map(r=>[
+    fmt(r.meetingDate||r.createdAt), r.company||'', r.contactName||'', r.ico||'', r.dic||'',
+    r.recordType||'', r.status||'', r.priority||'', r.topic||''
+  ]);
+  const win = window.open('', '_blank');
+  const rowsHtml = rows.map(r=> '<tr>'+ r.map(c=> `<td>${String(c).replace(/</g,'&lt;')}</td>`).join('') +'</tr>').join('');
+  win.document.write(`
+    <html><head><title>Přehled záznamů</title>
+    <style>
+      body{ font-family:system-ui,Segoe UI,Roboto,Arial; padding:20px; }
+      table{ width:100%; border-collapse:collapse; }
+      th,td{ border:1px solid #ddd; padding:6px 8px; font-size:12px; }
+      th{ background:#f3f4f6; text-align:left; }
+      h1{ margin:0 0 8px; }
+      .muted{ color:#666; }
+    </style></head><body>
+    <h1>Přehled záznamů</h1>
+    <div class="muted">${new Date().toLocaleString()}</div>
+    <table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml||'<tr><td colspan="9">Žádná data</td></tr>'}</tbody></table>
+    </body></html>
+  `);
+  win.document.close(); win.focus(); win.print();
+}
+document.getElementById('printBtn').onclick = printCurrent;
+document.getElementById('printAll').onclick = printAll;
+</script>
+</body>
+</html>
